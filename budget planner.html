@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Budget Planner — Bill Manager</title>
+<style>
+  :root{
+    --bg:#0f1724; --card:#0b1220; --muted:#9aa4b2; --accent:#ff7a59;
+    --glass: rgba(255,255,255,0.02); --radius:12px; --pad:16px;
+    color-scheme: dark;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; min-height:100vh; font-family:Inter,system-ui,Segoe UI,Roboto,Arial;
+    background:linear-gradient(180deg,#071026,#081428); color:#e6eef8; display:flex; align-items:center; justify-content:center;
+    padding:24px;
+  }
+  .container{width:100%;max-width:980px;display:grid;grid-template-columns:1fr 360px; gap:20px}
+  .panel{background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01)); padding:var(--pad); border-radius:var(--radius); border:1px solid rgba(255,255,255,0.04); box-shadow:0 12px 30px rgba(2,6,23,0.6)}
+  h1{margin:0 0 8px 0;font-size:1.2rem}
+  .muted{color:var(--muted);font-size:0.9rem}
+  form{display:grid;gap:8px}
+  input,select{padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit;outline:none}
+  .row{display:flex;gap:8px}
+  .btn{background:var(--accent);border:0;padding:8px 10px;border-radius:8px;color:#111;font-weight:700;cursor:pointer}
+  .btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted)}
+  .summary{display:flex;gap:12px;flex-wrap:wrap;margin-top:10px}
+  .card{flex:1 1 140px;padding:12px;border-radius:10px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.03)}
+  .large{font-size:1.3rem;font-weight:700}
+  .list{margin-top:12px;max-height:420px;overflow:auto;padding-right:6px}
+  .item{display:flex;justify-content:space-between;gap:10px;padding:8px;border-radius:8px;margin-bottom:8px;background:rgba(255,255,255,0.01);align-items:center}
+  .item .meta{display:flex;flex-direction:column}
+  .item .meta .title{font-weight:600}
+  .expense{color:#ff9b9b}
+  .income{color:#8df7b6}
+  .small{font-size:0.85rem;color:var(--muted)}
+  .barwrap{background:rgba(255,255,255,0.02);border-radius:8px;height:12px;overflow:hidden;margin-top:10px;border:1px solid rgba(255,255,255,0.03)}
+  .barused{height:100%;background:linear-gradient(90deg,var(--accent),#ffb58a);width:0%}
+  .controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center}
+  .rightcol{display:flex;flex-direction:column;gap:12px}
+  .muted-center{text-align:center;color:var(--muted)}
+  .tiny{font-size:0.82rem}
+  @media (max-width:980px){.container{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+  <div class="container" role="application">
+    <!-- LEFT: Add & List -->
+    <section class="panel">
+      <h1>Budget Planner</h1>
+      <div class="muted tiny">Add incomes and expenses — saved in your browser.</div>
+
+      <form id="entryForm" onsubmit="return false;">
+        <div class="row">
+          <input id="title" placeholder="Title (e.g., Groceries)" required />
+          <select id="type">
+            <option value="expense">Expense</option>
+            <option value="income">Income</option>
+          </select>
+        </div>
+        <div class="row">
+          <input id="amount" type="number" step="0.01" placeholder="Amount (₹ or $)" required />
+          <input id="date" type="date" />
+        </div>
+        <input id="category" placeholder="Category (Food, Rent, Salary)" />
+        <div class="controls">
+          <button class="btn" id="addBtn">Add Entry</button>
+          <button class="btn ghost" id="clearAll">Clear All</button>
+          <select id="filterMonth" class="ghost">
+            <option value="all">All months</option>
+          </select>
+        </div>
+      </form>
+
+      <div class="summary" id="summaryTop" aria-live="polite">
+        <div class="card"><div class="small">Income</div><div class="large" id="totalIncome">0</div></div>
+        <div class="card"><div class="small">Expenses</div><div class="large" id="totalExpense">0</div></div>
+        <div class="card"><div class="small">Balance</div><div class="large" id="balance">0</div></div>
+        <div class="card"><div class="small">Spent %</div><div class="large" id="spentPerc">0%</div></div>
+      </div>
+
+      <div class="barwrap" title="Used vs remaining">
+        <div class="barused" id="barUsed" style="width:0%"></div>
+      </div>
+
+      <div class="list" id="entriesList" aria-live="polite"></div>
+    </section>
+
+    <!-- RIGHT: Insights -->
+    <aside class="rightcol">
+      <div class="panel">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <strong>Monthly Insights</strong>
+          <small class="small muted">Quick view</small>
+        </div>
+        <div style="margin-top:8px" id="insightContent">
+          <div class="muted-center">No data yet — add entries to see insights.</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <strong>Top Categories</strong>
+        <div id="categories" class="muted tiny" style="margin-top:8px">—</div>
+      </div>
+
+      <div class="panel">
+        <strong>Tips</strong>
+        <ul class="small muted">
+          <li>Use categories for better insights.</li>
+          <li>Filter by month to review spending.</li>
+          <li>All data stored locally on your device.</li>
+        </ul>
+      </div>
+    </aside>
+  </div>
+
+<script>
+(function(){
+  const LS = 'budget_entries_v1';
+  const entriesListEl = document.getElementById('entriesList');
+  const totalIncomeEl = document.getElementById('totalIncome');
+  const totalExpenseEl = document.getElementById('totalExpense');
+  const balanceEl = document.getElementById('balance');
+  const spentPercEl = document.getElementById('spentPerc');
+  const barEl = document.getElementById('barUsed');
+  const insightEl = document.getElementById('insightContent');
+  const categoriesEl = document.getElementById('categories');
+  const filterMonthEl = document.getElementById('filterMonth');
+
+  // form fields
+  const titleEl = document.getElementById('title');
+  const typeEl = document.getElementById('type');
+  const amountEl = document.getElementById('amount');
+  const dateEl = document.getElementById('date');
+  const categoryEl = document.getElementById('category');
+
+  // load & save
+  function loadEntries(){ try { return JSON.parse(localStorage.getItem(LS) || "[]"); } catch(e){ return []; } }
+  function saveEntries(arr){ localStorage.setItem(LS, JSON.stringify(arr)); }
+
+  // populate month filter
+  function populateMonths(entries){
+    const months = new Set();
+    entries.forEach(e => {
+      if (e.date) months.add(e.date.slice(0,7));
+    });
+    const arr = Array.from(months).sort((a,b)=>b.localeCompare(a));
+    filterMonthEl.innerHTML = '<option value="all">All months</option>' + arr.map(m => {
+      const [y,mm] = m.split('-'); return `<option value="${m}">${mm}/${y}</option>`;
+    }).join('');
+  }
+
+  // render entries
+  function renderEntries(){
+    const all = loadEntries();
+    populateMonths(all);
+    const filter = filterMonthEl.value;
+    const entries = filter === 'all' ? all : all.filter(e => e.date && e.date.startsWith(filter));
+    entriesListEl.innerHTML = '';
+    if (entries.length === 0) entriesListEl.innerHTML = '<div class="muted-center small tiny">No entries for selected month.</div>';
+    entries.slice().reverse().forEach((e, idx) => {
+      const div = document.createElement('div');
+      div.className = 'item';
+      const left = document.createElement('div'); left.className='meta';
+      left.innerHTML = `<div class="title">${escapeHtml(e.title)}</div><div class="small muted">${e.category || '—'} • ${e.date || 'No date'}</div>`;
+      const right = document.createElement('div'); right.style.textAlign='right';
+      const amt = document.createElement('div'); amt.innerHTML = `${e.type==='income' ? '<span class="income">+' : '<span class="expense">-'}${Number(e.amount).toLocaleString()}</span>`;
+      const controls = document.createElement('div'); controls.style.marginTop='6px';
+      const del = document.createElement('button'); del.className='btn ghost'; del.textContent='Delete';
+      del.addEventListener('click', ()=>{ if(confirm('Delete this entry?')) { all.splice(all.indexOf(e),1); saveEntries(all); renderEntries(); }});
+      controls.appendChild(del);
+      right.appendChild(amt); right.appendChild(controls);
+      div.appendChild(left); div.appendChild(right);
+      entriesListEl.appendChild(div);
+    });
+    renderSummary(entries);
+    renderInsights(all);
+  }
+
+  function renderSummary(entries){
+    const income = entries.filter(e=>e.type==='income').reduce((s,e)=>s+Number(e.amount),0);
+    const expense = entries.filter(e=>e.type==='expense').reduce((s,e)=>s+Number(e.amount),0);
+    const balance = income - expense;
+    totalIncomeEl.textContent = income.toLocaleString(undefined,{maximumFractionDigits:2});
+    totalExpenseEl.textContent = expense.toLocaleString(undefined,{maximumFractionDigits:2});
+    balanceEl.textContent = balance.toLocaleString(undefined,{maximumFractionDigits:2});
+    const perc = income === 0 ? 0 : Math.min(100, Math.round((expense / (income||1)) * 100));
+    spentPercEl.textContent = perc + '%';
+    barEl.style.width = perc + '%';
+  }
+
+  function renderInsights(all){
+    if (all.length === 0){ insightEl.innerHTML = '<div class="muted-center small tiny">No data yet — add income & expenses.</div>'; categoriesEl.textContent = '—'; return; }
+    // compute top categories by expense
+    const catMap = {};
+    all.forEach(e => {
+      const cat = e.category || 'Uncategorized';
+      if (!catMap[cat]) catMap[cat]=0;
+      if (e.type === 'expense') catMap[cat] += Number(e.amount);
+    });
+    const sorted = Object.entries(catMap).sort((a,b)=>b[1]-a[1]);
+    categoriesEl.innerHTML = sorted.slice(0,5).map(([c,v])=>`${escapeHtml(c)}: ${v.toLocaleString()}`).join('<br/>') || '—';
+
+    // monthly totals
+    const monthMap = {};
+    all.forEach(e => {
+      const m = (e.date && e.date.slice(0,7)) || 'unknown';
+      if (!monthMap[m]) monthMap[m] = {inc:0,exp:0};
+      if (e.type==='income') monthMap[m].inc += Number(e.amount);
+      else monthMap[m].exp += Number(e.amount);
+    });
+    const months = Object.keys(monthMap).sort().slice(-4);
+    insightEl.innerHTML = months.map(m => {
+      const mm = monthMap[m], bal = mm.inc - mm.exp;
+      return `<div class="small"><strong>${m}</strong>: Income ${mm.inc.toLocaleString()} · Expense ${mm.exp.toLocaleString()} · Balance ${bal.toLocaleString()}</div>`;
+    }).join('');
+  }
+
+  function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])); }
+
+  // add handler
+  document.getElementById('addBtn').addEventListener('click', ()=>{
+    const title = titleEl.value.trim(); const type = typeEl.value; const amount = parseFloat(amountEl.value); const date = dateEl.value; const category = categoryEl.value.trim();
+    if (!title || !amount || isNaN(amount)) { alert('Please add title and valid amount'); return; }
+    const all = loadEntries();
+    all.push({id:Date.now(),title, type, amount: Number(amount.toFixed(2)), date, category});
+    saveEntries(all);
+    titleEl.value=''; amountEl.value=''; categoryEl.value=''; dateEl.value='';
+    renderEntries();
+  });
+
+  // clear all
+  document.getElementById('clearAll').addEventListener('click', ()=>{ if(confirm('Clear all saved entries?')){ localStorage.removeItem(LS); renderEntries(); }});
+
+  filterMonthEl.addEventListener('change', renderEntries);
+
+  // initial render
+  renderEntries();
+})();
+</script>
+</body>
+</html>
